@@ -72,17 +72,18 @@ fn run(instructions: Vec<Instruction>) -> Result<()> {
 
     let mut ptr = 0;
     while ptr < instructions.len() {
+        let mut jumped = false;
         let instruction = &instructions[ptr];
 
         match instruction.len() {
             0 => {}
             1 => {
                 if instruction[0] {
-                    // dup
+                    // duplicate top of stack
                     let value = stack.last().ok_or(RuntimeError::StackUnderflow)?.clone();
                     stack.push(value);
                 } else {
-                    // pop
+                    // pop top of stack
                     stack.pop().ok_or(RuntimeError::StackUnderflow)?;
                 }
             }
@@ -171,7 +172,20 @@ fn run(instructions: Vec<Instruction>) -> Result<()> {
             }
             3 => {
                 if instruction[0] {
-                    return Err(RuntimeError::InvalidInstruction.into());
+                    if instruction[1] {
+                        return Err(RuntimeError::InvalidInstruction.into());
+                    } else {
+                        if instruction[2] {
+                            return Err(RuntimeError::InvalidInstruction.into());
+                        } else {
+                            // jump to instruction
+                            ptr = Into::<usize>::into(match instructions.get(ptr + 1) {
+                                Some(instruction) => instruction,
+                                None => return Err(RuntimeError::InvalidInstruction.into()),
+                            });
+                            jumped = true;
+                        }
+                    }
                 } else {
                     if instruction[1] {
                         if instruction[2] {
@@ -239,7 +253,9 @@ fn run(instructions: Vec<Instruction>) -> Result<()> {
             }
         }
 
-        ptr += 1;
+        if !jumped {
+            ptr += 1;
+        }
     }
 
     Ok(())

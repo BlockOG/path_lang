@@ -100,6 +100,18 @@ impl From<&Instruction> for BigUint {
     }
 }
 
+impl From<&Instruction> for usize {
+    fn from(instruction: &Instruction) -> Self {
+        let mut result = 0;
+        for (i, bit) in instruction.op.iter().enumerate() {
+            if *bit {
+                result += 1 << i;
+            }
+        }
+        result
+    }
+}
+
 impl From<&Instruction> for bool {
     fn from(instruction: &Instruction) -> Self {
         if instruction.is_empty() {

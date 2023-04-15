@@ -2,8 +2,8 @@ First instruction has to be a noop
 
 / - noop
 
-.// - pop
-..// - dup
+.// - pop top of stack
+..// - duplicate top of stack
 
 ./.// <is positive> <binary number> - push integer
 ./..// <binary variable identifier> - pop to variable
@@ -14,3 +14,4 @@ First instruction has to be a noop
 ././..// - function call start (to allow optional arguments and varargs)
 ./../.// <binary variable identifier> - call function
 ./../..// <binary optional identifier> - make optional argument
+.././.// <binary number> - jump to instruction
