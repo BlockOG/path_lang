@@ -23,6 +23,26 @@ impl Memory {
             1.to_biguint().unwrap(),
             Value::Function(Function::new_built_in(true, 0, BuiltInFunction::PrintLn)),
         );
+        // memory.insert(
+        //     2.to_biguint().unwrap(),
+        //     Value::Function(Function::new_built_in(false, 1, BuiltInFunction::Read)),
+        // );
+        memory.insert(
+            3.to_biguint().unwrap(),
+            Value::Function(Function::new_built_in(false, 0, BuiltInFunction::ReadLn)),
+        );
+        memory.insert(
+            4.to_biguint().unwrap(),
+            Value::Function(Function::new_built_in(false, 1, BuiltInFunction::ToStr)),
+        );
+        memory.insert(
+            5.to_biguint().unwrap(),
+            Value::Function(Function::new_built_in(false, 1, BuiltInFunction::ToInt)),
+        );
+        memory.insert(
+            6.to_biguint().unwrap(),
+            Value::Function(Function::new_built_in(false, 1, BuiltInFunction::Trim)),
+        );
 
         Memory { memory }
     }

@@ -3,6 +3,7 @@ mod instruction;
 mod memory;
 
 use std::{
+    cmp::Ordering,
     collections::{HashMap, VecDeque},
     env,
 };
@@ -71,6 +72,7 @@ fn run(instructions: Vec<Instruction>) -> Result<()> {
     let mut memory = Memory::new();
 
     let mut ptr = 0;
+    let mut cmp = None;
     while ptr < instructions.len() {
         let mut jumped = false;
         let instruction = &instructions[ptr];
@@ -172,19 +174,19 @@ fn run(instructions: Vec<Instruction>) -> Result<()> {
             }
             3 => {
                 if instruction[0] {
-                    if instruction[1] {
-                        return Err(RuntimeError::InvalidInstruction.into());
-                    } else {
-                        if instruction[2] {
-                            return Err(RuntimeError::InvalidInstruction.into());
-                        } else {
-                            // jump to instruction
+                    match (instruction[1], instruction[2], cmp) {
+                        (false, false, _) // jump to instruction
+                        | (false, true, Some(Ordering::Less)) // jump to instruction if less
+                        | (true, false, Some(Ordering::Equal)) // jump to instruction if equal
+                        | (true, true, Some(Ordering::Greater)) // jump to instruction if greater
+                        => {
                             ptr = Into::<usize>::into(match instructions.get(ptr + 1) {
                                 Some(instruction) => instruction,
                                 None => return Err(RuntimeError::InvalidInstruction.into()),
                             });
                             jumped = true;
                         }
+                        _ => ptr += 1,
                     }
                 } else {
                     if instruction[1] {
@@ -230,7 +232,7 @@ fn run(instructions: Vec<Instruction>) -> Result<()> {
                                         None => return Err(RuntimeError::StackUnderflow.into()),
                                     }
                                 }
-                                if let Some(value) = function.call(args, optionals) {
+                                if let Some(value) = function.call(args, optionals)? {
                                     stack.push(StackValue::Value(value));
                                 }
                             } else {
@@ -244,6 +246,37 @@ fn run(instructions: Vec<Instruction>) -> Result<()> {
                         } else {
                             // push float
                             todo!("Floats");
+                        }
+                    }
+                }
+            }
+            4 => {
+                if instruction[0] {
+                    return Err(RuntimeError::InvalidInstruction.into());
+                } else {
+                    if instruction[1] {
+                        return Err(RuntimeError::InvalidInstruction.into());
+                    } else {
+                        if instruction[2] {
+                            return Err(RuntimeError::InvalidInstruction.into());
+                        } else {
+                            if instruction[3] {
+                                return Err(RuntimeError::InvalidInstruction.into());
+                            } else {
+                                // compare top two stack items
+                                let a = match stack.last().ok_or(RuntimeError::StackUnderflow)? {
+                                    StackValue::Value(Value::Integer(int)) => int,
+                                    _ => return Err(RuntimeError::InvalidInstruction.into()),
+                                };
+                                let b = match stack
+                                    .get(stack.len() - 2)
+                                    .ok_or(RuntimeError::StackUnderflow)?
+                                {
+                                    StackValue::Value(Value::Integer(int)) => int,
+                                    _ => return Err(RuntimeError::InvalidInstruction.into()),
+                                };
+                                cmp = Some(a.cmp(b));
+                            }
                         }
                     }
                 }

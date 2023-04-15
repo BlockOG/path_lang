@@ -3,6 +3,8 @@ use std::collections::{HashMap, VecDeque};
 use num_bigint::{BigUint, ToBigUint};
 
 use crate::{instruction::Instruction, Value};
+use anyhow::Result;
+use thiserror::Error;
 
 #[derive(Default, Clone, PartialEq)]
 pub(crate) enum BuiltInFunction {
@@ -10,6 +12,17 @@ pub(crate) enum BuiltInFunction {
     None,
     Print,
     PrintLn,
+    // Read,
+    ReadLn,
+    ToStr,
+    ToInt,
+    Trim,
+}
+
+#[derive(Debug, Error)]
+pub(crate) enum FunctionCallError {
+    #[error("Invalid number of arguments: expected {expected}, got {got}")]
+    InvalidNumberOfArguments { expected: usize, got: usize },
 }
 
 #[derive(Default, Clone)]
@@ -44,7 +57,15 @@ impl Function {
         &self,
         args: VecDeque<Value>,
         optionals: HashMap<BigUint, Value>,
-    ) -> Option<Value> {
+    ) -> Result<Option<Value>> {
+        if !self.varargs && args.len() != self.arity {
+            return Err(FunctionCallError::InvalidNumberOfArguments {
+                expected: self.arity,
+                got: args.len(),
+            }
+            .into());
+        }
+
         match self.built_in {
             BuiltInFunction::None => {}
             BuiltInFunction::Print | BuiltInFunction::PrintLn => {
@@ -81,7 +102,50 @@ impl Function {
                     print!("\n");
                 }
             }
+            BuiltInFunction::ReadLn => {
+                let mut input = String::new();
+                std::io::stdin().read_line(&mut input).unwrap();
+                return Ok(Some(Value::String(input)));
+            }
+            BuiltInFunction::ToStr => {
+                let arg = args.into_iter().next().unwrap();
+                return Ok(Some(Value::String(match arg {
+                    Value::Integer(i) => i.to_string(),
+                    Value::String(s) => s,
+                    Value::Function(f) => {
+                        format!(
+                            "<function {} arity={} {}>",
+                            if f.varargs { "varargs" } else { "constant" },
+                            f.arity,
+                            if f.built_in != BuiltInFunction::None {
+                                "built-in"
+                            } else {
+                                "user-defined"
+                            }
+                        )
+                    }
+                })));
+            }
+            BuiltInFunction::ToInt => {
+                let arg = args.into_iter().next().unwrap();
+                return Ok(Some(Value::Integer(match arg {
+                    Value::Integer(i) => i,
+                    Value::String(s) => s.parse().unwrap(),
+                    Value::Function(_) => {
+                        panic!("Cannot convert function to integer")
+                    }
+                })));
+            }
+            BuiltInFunction::Trim => {
+                let arg = args.into_iter().next().unwrap();
+                return Ok(Some(Value::String(match arg {
+                    Value::String(s) => s.trim().to_owned(),
+                    Value::Integer(_) | Value::Function(_) => {
+                        panic!("Cannot trim integer or function")
+                    }
+                })));
+            }
         }
-        None
+        Ok(None)
     }
 }

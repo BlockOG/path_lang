@@ -15,3 +15,8 @@ First instruction has to be a noop
 ./../.// <binary variable identifier> - call function
 ./../..// <binary optional identifier> - make optional argument
 .././.// <binary number> - jump to instruction
+.././..// <binary number> - jump to instruction if cmp flag is Ordering::Less
+../../.// <binary number> - jump to instruction if cmp flag is Ordering::Equal
+../../..// <binary number> - jump to instruction if cmp flag is Ordering::Greater
+
+./././.// - compare top two stack items, top.cmp(top2)
