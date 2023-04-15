@@ -171,6 +171,7 @@ fn run(instructions: Vec<Instruction>) -> Result<()> {
             }
             3 => {
                 if instruction[0] {
+                    return Err(RuntimeError::InvalidInstruction.into());
                 } else {
                     if instruction[1] {
                         if instruction[2] {
@@ -228,7 +229,7 @@ fn run(instructions: Vec<Instruction>) -> Result<()> {
                             stack.push(StackValue::CallStart);
                         } else {
                             // push float
-                            todo!("Floats are not implemented yet");
+                            todo!("Floats");
                         }
                     }
                 }
