@@ -13,3 +13,4 @@ First instruction has to be a noop
 ././.// <is positive> <binary number> <binary number> - push float (NOT IMPLEMENTED)
 ././..// - function call start (to allow optional arguments and varargs)
 ./../.// <binary variable identifier> - call function
+./../..// <binary optional identifier> - make optional argument

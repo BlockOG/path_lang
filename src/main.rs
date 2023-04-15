@@ -2,7 +2,10 @@ mod function;
 mod instruction;
 mod memory;
 
-use std::{collections::VecDeque, env};
+use std::{
+    collections::{HashMap, VecDeque},
+    env,
+};
 
 use anyhow::Result;
 use function::Function;
@@ -30,6 +33,7 @@ enum RuntimeError {
 #[derive(Clone)]
 enum StackValue {
     Value(Value),
+    Optional(BigUint, Value),
     CallStart,
 }
 
@@ -137,7 +141,7 @@ fn run(instructions: Vec<Instruction>) -> Result<()> {
                             index,
                             match stack.pop().ok_or(RuntimeError::StackUnderflow)? {
                                 StackValue::Value(value) => value,
-                                StackValue::CallStart => {
+                                StackValue::CallStart | StackValue::Optional(_, _) => {
                                     return Err(RuntimeError::InvalidInstruction.into())
                                 }
                             },
@@ -170,6 +174,24 @@ fn run(instructions: Vec<Instruction>) -> Result<()> {
                 } else {
                     if instruction[1] {
                         if instruction[2] {
+                            // make optioanl argument
+                            let value = stack.pop().ok_or(RuntimeError::StackUnderflow)?;
+                            ptr += 1;
+                            let index: BigUint = match instructions.get(ptr) {
+                                Some(instruction) => instruction,
+                                None => return Err(RuntimeError::InvalidInstruction.into()),
+                            }
+                            .into();
+
+                            stack.push(StackValue::Optional(
+                                index,
+                                match value {
+                                    StackValue::Value(value) => value,
+                                    StackValue::CallStart | StackValue::Optional(_, _) => {
+                                        return Err(RuntimeError::InvalidInstruction.into())
+                                    }
+                                },
+                            ));
                         } else {
                             // call function
                             ptr += 1;
@@ -182,14 +204,18 @@ fn run(instructions: Vec<Instruction>) -> Result<()> {
                             );
                             if let Some(Value::Function(function)) = function {
                                 let mut args = VecDeque::new();
+                                let mut optionals = HashMap::new();
                                 loop {
                                     match stack.pop() {
                                         Some(StackValue::Value(value)) => args.push_front(value),
+                                        Some(StackValue::Optional(index, value)) => {
+                                            optionals.insert(index, value);
+                                        }
                                         Some(StackValue::CallStart) => break,
                                         None => return Err(RuntimeError::StackUnderflow.into()),
                                     }
                                 }
-                                if let Some(value) = function.call(args) {
+                                if let Some(value) = function.call(args, optionals) {
                                     stack.push(StackValue::Value(value));
                                 }
                             } else {
