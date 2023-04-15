@@ -102,7 +102,11 @@ impl From<&Instruction> for BigUint {
 
 impl From<&Instruction> for bool {
     fn from(instruction: &Instruction) -> Self {
-        instruction.op[0]
+        if instruction.is_empty() {
+            false
+        } else {
+            instruction.op[0]
+        }
     }
 }
 
