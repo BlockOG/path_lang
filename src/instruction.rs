@@ -10,10 +10,6 @@ pub(crate) struct Instruction {
 }
 
 impl Instruction {
-    pub(crate) fn new(op: Vec<bool>) -> Instruction {
-        Instruction { op }
-    }
-
     pub(crate) fn add_part(&mut self, part: &str) {
         match part {
             "." => self.op.push(false),
