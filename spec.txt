@@ -11,8 +11,8 @@ First instruction has to be a noop
 ../..// <binary string length> <binary string> - push string
 
 ././.// <is positive> <binary number> <binary number> - push float (NOT IMPLEMENTED)
-././..// - function call start (to allow optional arguments and varargs)
-./../.// <binary variable identifier> - call function
+././..// - call function
+./../.// - make argument (to allow functions as arguments)
 ./../..// <binary optional identifier> - make optional argument
 .././.// <binary number> - jump to instruction
 .././..// <binary number> - jump to instruction if cmp flag is Ordering::Less

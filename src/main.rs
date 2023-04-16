@@ -25,8 +25,6 @@ enum SyntaxError {
 enum RuntimeError {
     #[error("Stack underflow")]
     StackUnderflow,
-    #[error("Not a function")]
-    NotAFunc,
     #[error("Invalid instruction")]
     InvalidInstruction,
 }
@@ -34,8 +32,8 @@ enum RuntimeError {
 #[derive(Clone)]
 enum StackValue {
     Value(Value),
+    Argument(Value),
     Optional(BigUint, Value),
-    CallStart,
 }
 
 #[derive(Clone)]
@@ -123,8 +121,8 @@ fn run(instructions: Vec<Instruction>) -> Result<()> {
                         memory.set(
                             index,
                             match stack.pop().ok_or(RuntimeError::StackUnderflow)? {
-                                StackValue::Value(value) => value,
-                                StackValue::CallStart | StackValue::Optional(_, _) => {
+                                StackValue::Value(value) | StackValue::Argument(value) => value,
+                                StackValue::Optional(_, _) => {
                                     return Err(RuntimeError::InvalidInstruction.into())
                                 }
                             },
@@ -179,39 +177,36 @@ fn run(instructions: Vec<Instruction>) -> Result<()> {
                             // push float
                             todo!("Floats");
                         } else {
-                            // function call start
-                            stack.push(StackValue::CallStart);
+                            // call function
+                            let mut args = VecDeque::new();
+                            let mut optionals = HashMap::new();
+                            loop {
+                                match stack.pop() {
+                                    Some(StackValue::Value(Value::Function(function))) => {
+                                        if let Some(value) = function.call(args, optionals)? {
+                                            stack.push(StackValue::Value(value));
+                                        }
+                                        break;
+                                    }
+                                    Some(StackValue::Value(value))
+                                    | Some(StackValue::Argument(value)) => args.push_front(value),
+                                    Some(StackValue::Optional(index, value)) => {
+                                        optionals.insert(index, value);
+                                    }
+                                    None => return Err(RuntimeError::StackUnderflow.into()),
+                                }
+                            }
                         }
                     } else {
                         if !instruction[2] {
-                            // call function
-                            ptr += 1;
-                            let function = memory.get(
-                                match instructions.get(ptr) {
-                                    Some(instruction) => instruction,
-                                    None => return Err(RuntimeError::InvalidInstruction.into()),
+                            // make argument
+                            let value = stack.pop().ok_or(RuntimeError::StackUnderflow)?;
+                            stack.push(StackValue::Argument(match value {
+                                StackValue::Value(value) => value,
+                                StackValue::Argument(_) | StackValue::Optional(_, _) => {
+                                    return Err(RuntimeError::InvalidInstruction.into())
                                 }
-                                .into(),
-                            );
-                            if let Some(Value::Function(function)) = function {
-                                let mut args = VecDeque::new();
-                                let mut optionals = HashMap::new();
-                                loop {
-                                    match stack.pop() {
-                                        Some(StackValue::Value(value)) => args.push_front(value),
-                                        Some(StackValue::Optional(index, value)) => {
-                                            optionals.insert(index, value);
-                                        }
-                                        Some(StackValue::CallStart) => break,
-                                        None => return Err(RuntimeError::StackUnderflow.into()),
-                                    }
-                                }
-                                if let Some(value) = function.call(args, optionals)? {
-                                    stack.push(StackValue::Value(value));
-                                }
-                            } else {
-                                return Err(RuntimeError::NotAFunc.into());
-                            }
+                            }));
                         } else {
                             // make optional argument
                             let value = stack.pop().ok_or(RuntimeError::StackUnderflow)?;
@@ -225,8 +220,8 @@ fn run(instructions: Vec<Instruction>) -> Result<()> {
                             stack.push(StackValue::Optional(
                                 index,
                                 match value {
-                                    StackValue::Value(value) => value,
-                                    StackValue::CallStart | StackValue::Optional(_, _) => {
+                                    StackValue::Value(value) | StackValue::Argument(value) => value,
+                                    StackValue::Optional(_, _) => {
                                         return Err(RuntimeError::InvalidInstruction.into())
                                     }
                                 },
