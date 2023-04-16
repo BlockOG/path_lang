@@ -21,7 +21,7 @@ Instructions:
 ../../.// - push top == top2
 ../../..// - push top > top2
 
-./././.// - index array or string, top[top2]
+./././.// - index array or string, top2[top]
 ./././..// <binary variable identifier> - remove variable
 ././../.// <binary number> - jump to instruction if top of stack is false
 ././../..// <binary number> - jump to instruction if top of stack is true
