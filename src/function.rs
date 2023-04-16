@@ -1,4 +1,5 @@
 use std::{
+    cmp::Ordering,
     collections::{HashMap, VecDeque},
     fmt::Display,
 };
@@ -77,7 +78,11 @@ impl Function {
         args: VecDeque<Value>,
         optionals: HashMap<BigUint, Value>,
     ) -> Result<Option<Value>> {
-        if !self.varargs && args.len() != self.arity {
+        if match args.len().cmp(&self.arity) {
+            Ordering::Less => true,
+            Ordering::Equal => false,
+            Ordering::Greater => !self.varargs,
+        } {
             return Err(FunctionCallError::InvalidNumberOfArguments {
                 expected: self.arity,
                 got: args.len(),
