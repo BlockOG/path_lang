@@ -1,5 +1,7 @@
 First instruction has to be a noop
 
+Instructions:
+
 / - noop
 
 .// - duplicate top of stack
@@ -21,3 +23,13 @@ First instruction has to be a noop
 
 ./././.// - compare top two stack items, top.cmp(top2)
 ./././..// <binary variable identifier> - remove variable
+
+Functions:
+
+.// - Print <function varargs arity=0 built-in>
+..// - PrintLn <function varargs arity=0 built-in>
+./..// - Read (NOT IMPLEMENTED)
+../..// - ReadLn <function constant arity=0 built-in>
+././..// - ToStr <function constant arity=1 built-in>
+.././..// - ToInt <function constant arity=1 built-in>
+./../..// - Trim <function constant arity=1 built-in>
