@@ -54,4 +54,8 @@ impl Memory {
     pub(crate) fn set(&mut self, index: BigUint, value: Value) {
         self.memory.insert(index, value);
     }
+
+    pub(crate) fn remove(&mut self, index: BigUint) {
+        self.memory.remove(&index);
+    }
 }

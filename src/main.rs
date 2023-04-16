@@ -81,12 +81,12 @@ fn run(instructions: Vec<Instruction>) -> Result<()> {
             0 => {}
             1 => {
                 if !instruction[0] {
-                    // pop top of stack
-                    stack.pop().ok_or(RuntimeError::StackUnderflow)?;
-                } else {
                     // duplicate top of stack
                     let value = stack.last().ok_or(RuntimeError::StackUnderflow)?.clone();
                     stack.push(value);
+                } else {
+                    // pop top of stack
+                    stack.pop().ok_or(RuntimeError::StackUnderflow)?;
                 }
             }
             2 => {
@@ -269,7 +269,14 @@ fn run(instructions: Vec<Instruction>) -> Result<()> {
                                 };
                                 cmp = Some(a.cmp(b));
                             } else {
-                                return Err(RuntimeError::InvalidInstruction.into());
+                                // remove variable
+                                let index: BigUint = match instructions.get(ptr + 1) {
+                                    Some(instruction) => instruction,
+                                    None => return Err(RuntimeError::InvalidInstruction.into()),
+                                }
+                                .into();
+
+                                memory.remove(index);
                             }
                         } else {
                             return Err(RuntimeError::InvalidInstruction.into());

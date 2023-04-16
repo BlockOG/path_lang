@@ -2,8 +2,8 @@ First instruction has to be a noop
 
 / - noop
 
-.// - pop top of stack
-..// - duplicate top of stack
+.// - duplicate top of stack
+..// - pop top of stack
 
 ./.// <is positive> <binary number> - push integer
 ./..// <binary variable identifier> - pop to variable
@@ -20,3 +20,4 @@ First instruction has to be a noop
 ../../..// <binary number> - jump to instruction if cmp flag is Ordering::Greater
 
 ./././.// - compare top two stack items, top.cmp(top2)
+./././..// <binary variable identifier> - remove variable

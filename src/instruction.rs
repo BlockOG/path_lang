@@ -25,10 +25,6 @@ impl Instruction {
     pub(crate) fn len(&self) -> usize {
         self.op.len()
     }
-
-    pub(crate) fn get(&self, index: usize) -> Option<bool> {
-        self.op.get(index).copied()
-    }
 }
 
 #[derive(Debug, Error)]
