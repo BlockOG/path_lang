@@ -1,6 +1,8 @@
 mod function;
 mod instruction;
 mod memory;
+mod stack_value;
+mod value;
 
 use std::{
     cmp::Ordering,
@@ -9,11 +11,14 @@ use std::{
 };
 
 use anyhow::Result;
-use function::Function;
+
 use instruction::{Instruction, ParseInstruction, ParsedInstruction};
 use memory::Memory;
-use num_bigint::{BigInt, BigUint, ToBigInt, ToBigUint};
+use num_bigint::{BigInt, BigUint};
+use num_traits::{One, Zero};
+use stack_value::StackValue;
 use thiserror::Error;
+use value::Value;
 
 #[derive(Debug, Error)]
 enum SyntaxError {
@@ -27,21 +32,6 @@ enum RuntimeError {
     StackUnderflow,
     #[error("Invalid instruction")]
     InvalidInstruction,
-}
-
-#[derive(Clone)]
-enum StackValue {
-    Value(Value),
-    Argument(Value),
-    Optional(BigUint, Value),
-}
-
-#[derive(Clone)]
-enum Value {
-    Integer(BigInt),
-    // Float(BigFloat),
-    String(String),
-    Function(Function),
 }
 
 fn parse(path: String) -> Result<Vec<Instruction>> {
@@ -70,7 +60,6 @@ fn run(instructions: Vec<Instruction>) -> Result<()> {
     let mut memory = Memory::new();
 
     let mut ptr = 0;
-    let mut cmp = None;
     while ptr < instructions.len() {
         let mut jumped = false;
         let instruction = &instructions[ptr];
@@ -102,10 +91,9 @@ fn run(instructions: Vec<Instruction>) -> Result<()> {
                         }
                         .into()
                         {
-                            stack.push(StackValue::Value(Value::Integer(int.to_bigint().unwrap())));
+                            stack.push(int.into());
                         } else {
-                            stack
-                                .push(StackValue::Value(Value::Integer(-int.to_bigint().unwrap())));
+                            stack.push((-BigInt::from(int)).into());
                         }
 
                         ptr += 2;
@@ -154,8 +142,8 @@ fn run(instructions: Vec<Instruction>) -> Result<()> {
                         .into();
 
                         let mut string = String::new();
-                        while length > 0.to_biguint().unwrap() {
-                            length -= 1.to_biguint().unwrap();
+                        while length > BigUint::zero() {
+                            length -= BigUint::one();
                             ptr += 1;
                             string.push(
                                 Into::<Result<u8>>::into(match instructions.get(ptr) {
@@ -229,19 +217,32 @@ fn run(instructions: Vec<Instruction>) -> Result<()> {
                         }
                     }
                 } else {
-                    match (instruction[1], instruction[2], cmp) {
-                        (false, false, _) // jump to instruction
-                        | (false, true, Some(Ordering::Less)) // jump to instruction if less
-                        | (true, false, Some(Ordering::Equal)) // jump to instruction if equal
-                        | (true, true, Some(Ordering::Greater)) // jump to instruction if greater
-                        => {
-                            ptr = Into::<usize>::into(match instructions.get(ptr + 1) {
-                                Some(instruction) => instruction,
-                                None => return Err(RuntimeError::InvalidInstruction.into()),
-                            });
-                            jumped = true;
+                    if !instruction[1] && !instruction[2] {
+                        // jump to instruction
+                        ptr = match instructions.get(ptr + 1) {
+                            Some(instruction) => instruction,
+                            None => return Err(RuntimeError::InvalidInstruction.into()),
                         }
-                        _ => ptr += 1,
+                        .into();
+                        jumped = true;
+                    } else {
+                        match (
+                            instruction[1],
+                            instruction[2],
+                            stack
+                                .pop()
+                                .ok_or(RuntimeError::StackUnderflow)?
+                                .partial_cmp(&stack.pop().ok_or(RuntimeError::StackUnderflow)?)
+                                .ok_or(RuntimeError::InvalidInstruction)?,
+                        ) {
+                            // push true
+                            (false, true, Ordering::Less)
+                            | (true, false, Ordering::Equal)
+                            | (true, true, Ordering::Greater) => stack.push(true.into()),
+
+                            // push false
+                            _ => stack.push(false.into()),
+                        }
                     }
                 }
             }
@@ -250,19 +251,29 @@ fn run(instructions: Vec<Instruction>) -> Result<()> {
                     if !instruction[1] {
                         if !instruction[2] {
                             if !instruction[3] {
-                                // compare top two stack items
-                                let a = match stack.last().ok_or(RuntimeError::StackUnderflow)? {
-                                    StackValue::Value(Value::Integer(int)) => int,
+                                // index array or string
+                                let index = stack.pop().ok_or(RuntimeError::StackUnderflow)?;
+                                let value = stack.last().ok_or(RuntimeError::StackUnderflow)?;
+
+                                stack.push(match (value, index) {
+                                    (
+                                        StackValue::Value(Value::Array(array)),
+                                        StackValue::Value(Value::Integer(index)),
+                                    ) => array
+                                        .get(TryInto::<usize>::try_into(index)?)
+                                        .ok_or(RuntimeError::InvalidInstruction)?
+                                        .clone()
+                                        .into(),
+                                    (
+                                        StackValue::Value(Value::String(string)),
+                                        StackValue::Value(Value::Integer(index)),
+                                    ) => string
+                                        .chars()
+                                        .nth(TryInto::<usize>::try_into(index)?)
+                                        .ok_or(RuntimeError::InvalidInstruction)?
+                                        .into(),
                                     _ => return Err(RuntimeError::InvalidInstruction.into()),
-                                };
-                                let b = match stack
-                                    .get(stack.len() - 2)
-                                    .ok_or(RuntimeError::StackUnderflow)?
-                                {
-                                    StackValue::Value(Value::Integer(int)) => int,
-                                    _ => return Err(RuntimeError::InvalidInstruction.into()),
-                                };
-                                cmp = Some(a.cmp(b));
+                                });
                             } else {
                                 // remove variable
                                 let index: BigUint = match instructions.get(ptr + 1) {
@@ -274,10 +285,44 @@ fn run(instructions: Vec<Instruction>) -> Result<()> {
                                 memory.remove(index);
                             }
                         } else {
-                            return Err(RuntimeError::InvalidInstruction.into());
+                            // jump to instruction if top of stack is boolean
+                            if instruction[3]
+                                == match stack.pop().ok_or(RuntimeError::StackUnderflow)? {
+                                    StackValue::Value(value) | StackValue::Argument(value) => {
+                                        value.into()
+                                    }
+                                    _ => return Err(RuntimeError::InvalidInstruction.into()),
+                                }
+                            {
+                                ptr = match instructions.get(ptr + 1) {
+                                    Some(instruction) => instruction,
+                                    None => return Err(RuntimeError::InvalidInstruction.into()),
+                                }
+                                .into();
+                                jumped = true;
+                            } else {
+                                ptr += 1;
+                            }
                         }
                     } else {
-                        return Err(RuntimeError::InvalidInstruction.into());
+                        if !instruction[2] {
+                            // push boolean
+                            stack.push(StackValue::Value(Value::Boolean(instruction[3])));
+                        } else {
+                            if !instruction[3] {
+                                // push empty array
+                                stack.push(StackValue::Value(Value::Array(Vec::new())));
+                            } else {
+                                // spread array
+                                let array = match stack.pop().ok_or(RuntimeError::StackUnderflow)? {
+                                    StackValue::Value(Value::Array(array)) => array,
+                                    _ => return Err(RuntimeError::InvalidInstruction.into()),
+                                };
+                                for value in array.into_iter().rev() {
+                                    stack.push(StackValue::Value(value));
+                                }
+                            }
+                        }
                     }
                 } else {
                     return Err(RuntimeError::InvalidInstruction.into());

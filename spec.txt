@@ -17,19 +17,29 @@ Instructions:
 ./../.// - make argument (to allow functions as arguments)
 ./../..// <binary optional identifier> - make optional argument
 .././.// <binary number> - jump to instruction
-.././..// <binary number> - jump to instruction if cmp flag is Ordering::Less
-../../.// <binary number> - jump to instruction if cmp flag is Ordering::Equal
-../../..// <binary number> - jump to instruction if cmp flag is Ordering::Greater
+.././..// - push top < top2
+../../.// - push top == top2
+../../..// - push top > top2
 
-./././.// - compare top two stack items, top.cmp(top2)
+./././.// - index array or string, top[top2]
 ./././..// <binary variable identifier> - remove variable
+././../.// <binary number> - jump to instruction if top of stack is false
+././../..// <binary number> - jump to instruction if top of stack is true
+./.././.// - push false
+./.././..// - push true
+./../../.// - push empty array
+./../../..// - spread array (first will be top of stack)
 
 Functions:
 
-.// - Print <function varargs arity=0 built-in>
+/ - Print <function varargs arity=0 built-in>
 ..// - PrintLn <function varargs arity=0 built-in>
 ./..// - Read (NOT IMPLEMENTED)
 ../..// - ReadLn <function constant arity=0 built-in>
-././..// - ToStr <function constant arity=1 built-in>
-.././..// - ToInt <function constant arity=1 built-in>
-./../..// - Trim <function constant arity=1 built-in>
+././..// - ToBool <function constant arity=1 built-in>
+.././..// - ToStr <function constant arity=1 built-in>
+./../..// - ToInt <function constant arity=1 built-in>
+../../..// - Trim <function constant arity=1 built-in>
+./././..// - Len <function constant arity=1 built-in>
+../././..// - Push <function constant arity=2 built-in>
+./.././..// - Pop <function constant arity=1 built-in>

@@ -4,7 +4,7 @@ use anyhow::Result;
 use num_bigint::{BigUint, ToBigUint};
 use thiserror::Error;
 
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, PartialEq)]
 pub(crate) struct Instruction {
     op: Vec<bool>,
 }

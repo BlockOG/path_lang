@@ -33,15 +33,31 @@ impl Memory {
         );
         memory.insert(
             4.to_biguint().unwrap(),
-            Value::Function(Function::new_built_in(false, 1, BuiltInFunction::ToStr)),
+            Value::Function(Function::new_built_in(false, 1, BuiltInFunction::ToBool)),
         );
         memory.insert(
             5.to_biguint().unwrap(),
-            Value::Function(Function::new_built_in(false, 1, BuiltInFunction::ToInt)),
+            Value::Function(Function::new_built_in(false, 1, BuiltInFunction::ToStr)),
         );
         memory.insert(
             6.to_biguint().unwrap(),
+            Value::Function(Function::new_built_in(false, 1, BuiltInFunction::ToInt)),
+        );
+        memory.insert(
+            7.to_biguint().unwrap(),
             Value::Function(Function::new_built_in(false, 1, BuiltInFunction::Trim)),
+        );
+        memory.insert(
+            8.to_biguint().unwrap(),
+            Value::Function(Function::new_built_in(false, 1, BuiltInFunction::Len)),
+        );
+        memory.insert(
+            9.to_biguint().unwrap(),
+            Value::Function(Function::new_built_in(false, 2, BuiltInFunction::Push)),
+        );
+        memory.insert(
+            10.to_biguint().unwrap(),
+            Value::Function(Function::new_built_in(false, 1, BuiltInFunction::Pop)),
         );
 
         Memory { memory }
