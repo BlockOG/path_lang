@@ -1,4 +1,7 @@
-use std::collections::{HashMap, VecDeque};
+use std::{
+    collections::{HashMap, VecDeque},
+    fmt::Display,
+};
 
 use num_bigint::{BigUint, ToBigUint};
 
@@ -32,6 +35,22 @@ pub(crate) struct Function {
 
     built_in: BuiltInFunction,
     instructions: Vec<Instruction>,
+}
+
+impl Display for Function {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "<function {} arity={} {}>",
+            if self.varargs { "varargs" } else { "constant" },
+            self.arity,
+            if self.built_in != BuiltInFunction::None {
+                "built-in"
+            } else {
+                "user-defined"
+            }
+        )
+    }
 }
 
 impl Function {
@@ -83,18 +102,7 @@ impl Function {
                     match arg {
                         Value::Integer(i) => print!("{i}"),
                         Value::String(s) => print!("{s}"),
-                        Value::Function(f) => {
-                            print!(
-                                "<function {} arity={} {}>",
-                                if f.varargs { "varargs" } else { "constant" },
-                                f.arity,
-                                if f.built_in != BuiltInFunction::None {
-                                    "built-in"
-                                } else {
-                                    "user-defined"
-                                }
-                            )
-                        }
+                        Value::Function(f) => print!("{f}"),
                     }
                 }
 
@@ -112,18 +120,7 @@ impl Function {
                 return Ok(Some(Value::String(match arg {
                     Value::Integer(i) => i.to_string(),
                     Value::String(s) => s,
-                    Value::Function(f) => {
-                        format!(
-                            "<function {} arity={} {}>",
-                            if f.varargs { "varargs" } else { "constant" },
-                            f.arity,
-                            if f.built_in != BuiltInFunction::None {
-                                "built-in"
-                            } else {
-                                "user-defined"
-                            }
-                        )
-                    }
+                    Value::Function(f) => f.to_string(),
                 })));
             }
             BuiltInFunction::ToInt => {
