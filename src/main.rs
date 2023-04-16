@@ -213,7 +213,7 @@ fn run(instructions: Vec<Instruction>) -> Result<()> {
                                 return Err(RuntimeError::NotAFunc.into());
                             }
                         } else {
-                            // make optioanl argument
+                            // make optional argument
                             let value = stack.pop().ok_or(RuntimeError::StackUnderflow)?;
                             ptr += 1;
                             let index: BigUint = match instructions.get(ptr) {
