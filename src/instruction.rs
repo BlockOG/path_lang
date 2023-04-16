@@ -1,7 +1,8 @@
 use std::{iter::Peekable, ops::Index, str::Chars};
 
 use anyhow::Result;
-use num_bigint::{BigUint, ToBigUint};
+use num_bigint::BigUint;
+use num_traits::{One, Zero};
 use thiserror::Error;
 
 #[derive(Default, Debug, Clone, PartialEq)]
@@ -86,10 +87,10 @@ impl Index<usize> for Instruction {
 
 impl From<&Instruction> for BigUint {
     fn from(instruction: &Instruction) -> Self {
-        let mut result = 0.to_biguint().unwrap();
+        let mut result = BigUint::zero();
         for (i, bit) in instruction.op.iter().enumerate() {
             if *bit {
-                result += 1.to_biguint().unwrap() << i;
+                result += BigUint::one() << i;
             }
         }
         result

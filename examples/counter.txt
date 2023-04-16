@@ -1,0 +1,31 @@
+Counter (starts at 0)
+
+/././///.//.././/..//./././././//..//././..//././/..//..//.././././/../././/../..//
+
+Instruction breakdown:
+
+/ - noop (doesn't count for jumps btw)
+
+./.// - push integer
+/ - false (negative)
+/ - 0
+
+.// - duplicate top of stack <-----+
+                                   |
+../.// - push variable             |
+..// - 1 (PrintLn)                 |
+                                   |
+././././.// - swap stack values    |
+/ - 0 (top)                        |
+..// - 1 (top2)                    |
+                                   |
+././..// - call function           |
+                                   |
+./.// - push integer               |
+..// - true (positive)             |
+..// - 1                           |
+                                   |
+../././.// - top + top2            |
+                                   |
+.././.// - jump to instruction     |
+../..// - 3 -----------------------+

@@ -1,4 +1,4 @@
-First instruction has to be a noop
+First instruction has to be a noop (basically starting at root)
 
 Instructions:
 
@@ -27,8 +27,18 @@ Instructions:
 ././../..// <binary number> - jump to instruction if top of stack is true
 ./.././.// - push false
 ./.././..// - push true
-./../../.// - push empty array
+./../../.// <binary array length> - push array
 ./../../..// - spread array (first will be top of stack)
+../././.// - top + top2
+../././..// - top - top2
+.././../.// - top * top2
+.././../..// - top / top2
+../.././.// - top % top2
+../.././..// - top ** top2
+../../../.// - -top
+../../../..// - !top
+
+././././.// <binary number> <binary number> - swap stack values, 0 is top
 
 Functions:
 

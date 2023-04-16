@@ -15,7 +15,7 @@ use anyhow::Result;
 use instruction::{Instruction, ParseInstruction, ParsedInstruction};
 use memory::Memory;
 use num_bigint::{BigInt, BigUint};
-use num_traits::{One, Zero};
+use num_traits::{One, Pow, Zero};
 use stack_value::StackValue;
 use thiserror::Error;
 use value::Value;
@@ -135,15 +135,14 @@ fn run(instructions: Vec<Instruction>) -> Result<()> {
                     } else {
                         // push string
                         ptr += 1;
-                        let mut length: BigUint = match instructions.get(ptr) {
+                        let length = match instructions.get(ptr) {
                             Some(instruction) => instruction,
                             None => return Err(RuntimeError::InvalidInstruction.into()),
                         }
                         .into();
 
                         let mut string = String::new();
-                        while length > BigUint::zero() {
-                            length -= BigUint::one();
+                        for _ in 0..length {
                             ptr += 1;
                             string.push(
                                 Into::<Result<u8>>::into(match instructions.get(ptr) {
@@ -310,8 +309,20 @@ fn run(instructions: Vec<Instruction>) -> Result<()> {
                             stack.push(StackValue::Value(Value::Boolean(instruction[3])));
                         } else {
                             if !instruction[3] {
-                                // push empty array
-                                stack.push(StackValue::Value(Value::Array(Vec::new())));
+                                // push array
+                                let length = match instructions.get(ptr + 1) {
+                                    Some(instruction) => instruction,
+                                    None => return Err(RuntimeError::InvalidInstruction.into()),
+                                }
+                                .into();
+
+                                let mut array = Vec::new();
+                                for _ in 0..length {
+                                    array.push(
+                                        stack.pop().ok_or(RuntimeError::StackUnderflow)?.into(),
+                                    );
+                                }
+                                stack.push(StackValue::Value(Value::Array(array)));
                             } else {
                                 // spread array
                                 let array = match stack.pop().ok_or(RuntimeError::StackUnderflow)? {
@@ -323,6 +334,180 @@ fn run(instructions: Vec<Instruction>) -> Result<()> {
                                 }
                             }
                         }
+                    }
+                } else {
+                    if instruction[1] && instruction[2] {
+                        let v = stack.pop().ok_or(RuntimeError::StackUnderflow)?.into();
+                        if !instruction[3] {
+                            // -top
+                            stack.push(
+                                match v {
+                                    Value::Boolean(v) => {
+                                        if v {
+                                            -BigInt::one()
+                                        } else {
+                                            BigInt::zero()
+                                        }
+                                    }
+                                    Value::Integer(v) => -v,
+                                    _ => return Err(RuntimeError::InvalidInstruction.into()),
+                                }
+                                .into(),
+                            );
+                        } else {
+                            // !top
+                            match v {
+                                Value::Boolean(v) => {
+                                    stack.push(StackValue::Value(Value::Boolean(!v)))
+                                }
+                                Value::Integer(v) => stack.push((!v).into()),
+                                _ => return Err(RuntimeError::InvalidInstruction.into()),
+                            }
+                        }
+                    } else {
+                        let v1 = stack.pop().ok_or(RuntimeError::StackUnderflow)?.into();
+                        let v2 = stack.pop().ok_or(RuntimeError::StackUnderflow)?.into();
+                        let res = match (instruction[1], instruction[2], instruction[3], v1, v2) {
+                            // +
+                            (false, false, false, Value::Boolean(v1), Value::Boolean(v2)) => {
+                                StackValue::Value(Value::Integer(((v1 as u8) + (v2 as u8)).into()))
+                            }
+                            (false, false, false, Value::Boolean(v1), Value::Integer(v2)) => {
+                                StackValue::Value(Value::Integer((v1 as u8) + v2))
+                            }
+                            (false, false, false, Value::Integer(v1), Value::Boolean(v2)) => {
+                                StackValue::Value(Value::Integer(v1 + (v2 as u8)))
+                            }
+                            (false, false, false, Value::Integer(v1), Value::Integer(v2)) => {
+                                StackValue::Value(Value::Integer(v1 + v2))
+                            }
+
+                            // -
+                            (false, false, true, Value::Boolean(v1), Value::Boolean(v2)) => {
+                                StackValue::Value(Value::Integer(((v1 as u8) - (v2 as u8)).into()))
+                            }
+                            (false, false, true, Value::Boolean(v1), Value::Integer(v2)) => {
+                                StackValue::Value(Value::Integer((v1 as u8) - v2))
+                            }
+                            (false, false, true, Value::Integer(v1), Value::Boolean(v2)) => {
+                                StackValue::Value(Value::Integer(v1 - (v2 as u8)))
+                            }
+                            (false, false, true, Value::Integer(v1), Value::Integer(v2)) => {
+                                StackValue::Value(Value::Integer(v1 - v2))
+                            }
+
+                            // *
+                            (false, true, false, Value::Boolean(v1), Value::Boolean(v2)) => {
+                                StackValue::Value(Value::Integer(((v1 as u8) * (v2 as u8)).into()))
+                            }
+                            (false, true, false, Value::Boolean(v1), Value::Integer(v2)) => {
+                                StackValue::Value(Value::Integer((v1 as u8) * v2))
+                            }
+                            (false, true, false, Value::Integer(v1), Value::Boolean(v2)) => {
+                                StackValue::Value(Value::Integer(v1 * (v2 as u8)))
+                            }
+                            (false, true, false, Value::Integer(v1), Value::Integer(v2)) => {
+                                StackValue::Value(Value::Integer(v1 * v2))
+                            }
+
+                            // /
+                            (false, true, true, Value::Boolean(v1), Value::Boolean(v2)) => {
+                                StackValue::Value(Value::Integer(((v1 as u8) / (v2 as u8)).into()))
+                            }
+                            (false, true, true, Value::Boolean(v1), Value::Integer(v2)) => {
+                                StackValue::Value(Value::Integer((v1 as u8) / v2))
+                            }
+                            (false, true, true, Value::Integer(v1), Value::Boolean(v2)) => {
+                                StackValue::Value(Value::Integer(v1 / (v2 as u8)))
+                            }
+                            (false, true, true, Value::Integer(v1), Value::Integer(v2)) => {
+                                StackValue::Value(Value::Integer(v1 / v2))
+                            }
+
+                            // %
+                            (true, false, false, Value::Boolean(v1), Value::Boolean(v2)) => {
+                                StackValue::Value(Value::Integer(((v1 as u8) % (v2 as u8)).into()))
+                            }
+                            (true, false, false, Value::Boolean(v1), Value::Integer(v2)) => {
+                                StackValue::Value(Value::Integer((v1 as u8) % v2))
+                            }
+                            (true, false, false, Value::Integer(v1), Value::Boolean(v2)) => {
+                                StackValue::Value(Value::Integer(v1 % (v2 as u8)))
+                            }
+                            (true, false, false, Value::Integer(v1), Value::Integer(v2)) => {
+                                StackValue::Value(Value::Integer(v1 % v2))
+                            }
+
+                            // **
+                            (true, false, true, Value::Boolean(v1), Value::Boolean(v2)) => {
+                                StackValue::Value(Value::Integer(if !v1 && v2 {
+                                    BigInt::zero()
+                                } else {
+                                    BigInt::one()
+                                }))
+                            }
+                            (true, false, true, Value::Boolean(v1), Value::Integer(v2)) => {
+                                StackValue::Value(Value::Integer(
+                                    if v1 { BigInt::one() } else { BigInt::zero() }.pow(TryInto::<
+                                        BigUint,
+                                    >::try_into(
+                                        v2
+                                    )?),
+                                ))
+                            }
+                            (true, false, true, Value::Integer(v1), Value::Boolean(v2)) => {
+                                StackValue::Value(Value::Integer(v1.pow(v2 as u8)))
+                            }
+                            (true, false, true, Value::Integer(v1), Value::Integer(v2)) => {
+                                StackValue::Value(Value::Integer(
+                                    v1.pow(TryInto::<BigUint>::try_into(v2)?),
+                                ))
+                            }
+
+                            _ => return Err(RuntimeError::InvalidInstruction.into()),
+                        };
+                        stack.push(res);
+                    }
+                }
+            }
+            5 => {
+                if !instruction[0] {
+                    if !instruction[1] {
+                        if !instruction[2] {
+                            if !instruction[3] {
+                                if !instruction[4] {
+                                    // swap stack values, 0 is top
+                                    let i1: usize = stack
+                                        .len()
+                                        .checked_sub(Into::<usize>::into(
+                                            instructions
+                                                .get(ptr + 1)
+                                                .ok_or(RuntimeError::InvalidInstruction)?,
+                                        ))
+                                        .and_then(|x| x.checked_sub(1))
+                                        .ok_or(RuntimeError::InvalidInstruction)?;
+                                    let i2: usize = stack
+                                        .len()
+                                        .checked_sub(Into::<usize>::into(
+                                            instructions
+                                                .get(ptr + 2)
+                                                .ok_or(RuntimeError::InvalidInstruction)?,
+                                        ))
+                                        .and_then(|x| x.checked_sub(1))
+                                        .ok_or(RuntimeError::InvalidInstruction)?;
+                                    stack.swap(i1, i2);
+                                    ptr += 2;
+                                } else {
+                                    return Err(RuntimeError::InvalidInstruction.into());
+                                }
+                            } else {
+                                return Err(RuntimeError::InvalidInstruction.into());
+                            }
+                        } else {
+                            return Err(RuntimeError::InvalidInstruction.into());
+                        }
+                    } else {
+                        return Err(RuntimeError::InvalidInstruction.into());
                     }
                 } else {
                     return Err(RuntimeError::InvalidInstruction.into());

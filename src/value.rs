@@ -2,7 +2,7 @@ use std::fmt::{self, Display};
 
 use num_bigint::{BigInt, BigUint};
 
-use crate::function::Function;
+use crate::{function::Function, stack_value::StackValue};
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Value {
@@ -107,6 +107,16 @@ impl PartialOrd<Value> for Value {
             (Value::String(s1), Value::String(s2)) => s1.partial_cmp(s2),
             (Value::Array(a1), Value::Array(a2)) => a1.partial_cmp(a2),
             _ => None,
+        }
+    }
+}
+
+impl From<StackValue> for Value {
+    fn from(value: StackValue) -> Self {
+        match value {
+            StackValue::Value(v) => v,
+            StackValue::Argument(v) => v,
+            StackValue::Optional(_, v) => v,
         }
     }
 }
